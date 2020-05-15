@@ -1,4 +1,4 @@
-# Synacor Binary Ninja Plugin
+# Synacor plugin for Binary Ninja
 
 Soon.
 
