@@ -1,0 +1,5 @@
+[IMPORTS]
+ignored-modules = binaryninja
+
+[MESSAGES]
+disable = missing-docstring, invalid-name, no-self-use, relative-import
