@@ -2,7 +2,7 @@
 
 from binaryninja.architecture import Architecture
 from binaryninja.binaryview import BinaryView
-from binaryninja.enums import SegmentFlag as Flag
+from binaryninja.enums import SectionSemantics, SegmentFlag as Flag
 
 class SynacorView(BinaryView):
     name = 'Synacor'
@@ -26,6 +26,12 @@ class SynacorView(BinaryView):
             0, len(self.raw), # entire program is self-modifiable
             0, len(self.raw),
             Flag.SegmentReadable | Flag.SegmentExecutable | Flag.SegmentWritable
+        )
+
+        # TODO: Is this correct?
+        self.add_user_section(
+            'synacor', 0, len(self.raw),
+            SectionSemantics.ReadOnlyCodeSectionSemantics
         )
 
         self.add_entry_point(0)
