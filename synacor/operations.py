@@ -225,7 +225,7 @@ class CallOperation(Operation):
         if target.is_literal:
             ii.add_branch(BranchType.CallDestination, target.value * size)
         else:
-            ii.add_branch(BranchType.UnresolvedBranch)
+            ii.add_branch(BranchType.CallDestination)
 
     def low_level_il(self, il):
         a, = self.operands_to_il(il)
