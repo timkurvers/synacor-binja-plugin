@@ -31,8 +31,6 @@ class Operation(object):
         return [operand.to_il(il) for operand in self.operands]
 
     def tokenize(self, tokens):
-        tokens.append(Token(TokenType.AddressDisplayToken, display(self.addr)))
-        tokens.append(Token(TokenType.TextToken, '  '))
         tokens.append(Token(TokenType.InstructionToken, '{:6}'.format(self.label)))
 
         for (i, operand) in enumerate(self.operands):
