@@ -11,8 +11,6 @@ ADDRESS  = 0b001
 CHAR     = 0b010
 REGISTER = 0b100
 
-NOOP = lambda *a, **k: None
-
 def display(value, kind = VALUE, pad_bytes = 2):
     if kind == CHAR:
         return repr(chr(value))
