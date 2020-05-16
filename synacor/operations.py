@@ -204,7 +204,11 @@ class NotOperation(Operation):
 class ReadMemoryOperation(Operation):
     opcode = 15
     label = 'rmem'
-    operand_types = [REGISTER | ADDRESS, VALUE]
+    operand_types = [REGISTER, ADDRESS]
+
+    def low_level_il(self, il):
+        a, b = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.load(size, b)))
 
 # wmem: 16 a b
 #   write the value from <b> into memory at address <a>
@@ -212,6 +216,10 @@ class WriteMemoryOperation(Operation):
     opcode = 16
     label = 'wmem'
     operand_types = [ADDRESS, VALUE]
+
+    def low_level_il(self, il):
+        a, b = self.operands_to_il(il)
+        il.append(il.store(size, a, b))
 
 # call: 17 a
 #   write the address of the next operation to the stack and jump to <a>
