@@ -1,7 +1,7 @@
 from binaryninja.enums import InstructionTextTokenType as TokenType
 from binaryninja.function import InstructionTextToken as Token
 
-from .utils import ADDRESS_SIZE as size, classproperty
+from .utils import ADDRESS_SIZE as size, classproperty, display
 
 class Operation(object):
     opcode = None
@@ -31,7 +31,7 @@ class Operation(object):
         return [operand.to_il(il) for operand in self.operands]
 
     def tokenize(self, tokens):
-        tokens.append(Token(TokenType.AddressDisplayToken, '0x{0:0{1}X}'.format(self.addr, 4)))
+        tokens.append(Token(TokenType.AddressDisplayToken, display(self.addr)))
         tokens.append(Token(TokenType.TextToken, '  '))
         tokens.append(Token(TokenType.InstructionToken, '{:6}'.format(self.label)))
 

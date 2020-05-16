@@ -13,6 +13,11 @@ REGISTER = 0b100
 
 NOOP = lambda *a, **k: None
 
+def display(value, kind = VALUE, pad_bytes = 2):
+    if kind == CHAR:
+        return repr(chr(value))
+    return '0x{0:0{1}X}'.format(value, pad_bytes * 2)
+
 class classproperty(object):
     def __init__(self, getter):
         self.getter = getter

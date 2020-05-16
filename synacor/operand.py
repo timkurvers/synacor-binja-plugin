@@ -3,7 +3,8 @@ from binaryninja.function import InstructionTextToken as Token
 
 from .utils import (
     ADDRESS_SIZE as size, LITERAL_MAX, REGISTER_MIN, REGISTER_MAX,
-    ADDRESS, CHAR, REGISTER
+    ADDRESS, CHAR, REGISTER,
+    display,
 )
 
 class Operand(object):
@@ -30,12 +31,12 @@ class Operand(object):
             token = Token(TokenType.RegisterToken, self.register_name)
         elif self.is_literal:
             if self.flags & CHAR:
-                token = Token(TokenType.CharacterConstantToken, repr(chr(self.value)))
+                token = Token(TokenType.CharacterConstantToken, display(self.value, CHAR))
             elif self.flags & ADDRESS:
                 address = self.value * size
-                token = Token(TokenType.PossibleAddressToken, '0x{0:0{1}X}'.format(address, 4))
+                token = Token(TokenType.PossibleAddressToken, display(address))
             else:
-                token = Token(TokenType.IntegerToken, str(self.value))
+                token = Token(TokenType.TextToken, display(self.value, pad_bytes=0))
         if token:
             tokens.append(token)
 
