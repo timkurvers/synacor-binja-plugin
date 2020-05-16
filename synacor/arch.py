@@ -11,7 +11,7 @@ class Synacor(Architecture):
     name = 'Synacor'
 
     address_size = size
-    default_int_size = 2
+    default_int_size = size
     instr_alignment = 1
     max_instr_length = max([op.size for op in operations])
 
