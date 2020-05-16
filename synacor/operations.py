@@ -1,302 +1,297 @@
-from binaryninja.enums import InstructionTextTokenType as TokenType
-from binaryninja.function import InstructionTextToken as Token
+from binaryninja.enums import BranchType
 
+from .operation import Operation
 from .utils import (
-    ADDRESS_SIZE, LITERAL_MAX, NOOP,
-    ADDRESS, CHAR, DYNAMIC, REGISTER,
-    is_literal, is_register
+    ADDRESS_SIZE as size,
+    ADDRESS, CHAR, REGISTER, VALUE
 )
 
-class Operation(object):
-    def __init__(self, opcode, name, operands=None, to_llil=NOOP):
-        self.opcode = opcode
-        self.name = name
-        if operands is None:
-            operands = []
-        self.operands = operands
-        self.to_llil = to_llil
+# halt: 0
+#   stop execution and terminate the program
+class HaltOperation(Operation):
+    opcode = 0
+    label = 'halt'
 
-    @property
-    def size(self):
-        return 2 + len(self.operands) * 2
+    def branching(self, ii):
+        ii.add_branch(BranchType.UnresolvedBranch)
 
-    def tokenize(self, _arch, _data, addr, tokens, *values):
-        tokens.append(Token(TokenType.AddressDisplayToken, '0x{0:0{1}X}'.format(addr, 4)))
-        tokens.append(Token(TokenType.TextToken, '  '))
-        tokens.append(Token(TokenType.InstructionToken, '{:7}'.format(self.name)))
+    def low_level_il(self, il):
+        il.append(il.no_ret())
 
-        for (i, value) in enumerate(values):
-            operand = self.operands[i]
+# set: 1 a b
+#   set register <a> to the value of <b>
+class SetOperation(Operation):
+    opcode = 1
+    label = 'set'
+    operand_types = [REGISTER, VALUE]
 
-            if i != 0:
-                tokens.append(
-                    Token(TokenType.OperandSeparatorToken, ', ')
-                )
+    def low_level_il(self, il):
+        a, b = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, b))
 
-            if is_register(value):
-                register = 'R%i' % (value - LITERAL_MAX)
-                tokens.append(
-                    Token(TokenType.RegisterToken, register)
-                )
-            elif is_literal(value):
-                if operand & CHAR:
-                    tokens.append(
-                        Token(TokenType.CharacterConstantToken, repr(chr(value)))
-                    )
-                elif operand & ADDRESS:
-                    address = value * ADDRESS_SIZE
-                    tokens.append(
-                        Token(TokenType.PossibleAddressToken, '0x{0:0{1}X}'.format(address, 4))
-                    )
-                else:
-                    tokens.append(
-                        Token(TokenType.IntegerToken, str(value))
-                    )
-            else:
-                tokens.append(Token(TokenType.TextToken, '%i (unknown type)' % value))
+# push: 2 a
+#   push <a> onto the stack
+class StackPushOperation(Operation):
+    opcode = 2
+    label = 'push'
+    operand_types = [VALUE]
+
+    def low_level_il(self, il):
+        a, = self.operands_to_il(il)
+        il.append(il.push(size, a))
+
+# pop: 3 a
+#   remove the top element from the stack and write it into <a>; empty stack = error
+class StackPopOperation(Operation):
+    opcode = 3
+    label = 'pop'
+    operand_types = [REGISTER]
+
+    def low_level_il(self, il):
+        reg, = self.operands_to_il(il)
+        il.append(il.set_reg(size, reg, il.pop(size)))
+
+# eq: 4 a b c
+#   set <a> to 1 if <b> is equal to <c>; set it to 0 otherwise
+class EqualityOperation(Operation):
+    opcode = 4
+    label = 'eq'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.compare_equal(size, b, c)))
+
+# gt: 5 a b c
+#   set <a> to 1 if <b> is greater than <c>; set it to 0 otherwise
+class GreaterThanOperation(Operation):
+    opcode = 5
+    label = 'gt'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.compare_signed_greater_than(size, b, c)))
+
+# jmp: 6 a
+#   jump to <a>
+class JumpOperation(Operation):
+    opcode = 6
+    label = 'jmp'
+    operand_types = [ADDRESS]
+
+    def branching(self, ii):
+        target, = self.operands
+        if target.is_literal:
+            ii.add_branch(BranchType.UnconditionalBranch, target.value * size)
+        else:
+            ii.add_branch(BranchType.UnresolvedBranch)
+
+    def low_level_il(self, il):
+        a, = self.operands_to_il(il)
+        il.append(il.jump(a))
+
+# jt: 7 a b
+#   if <a> is nonzero, jump to <b>
+class JumpIfNonzeroOperation(Operation):
+    opcode = 7
+    label = 'jt'
+    operand_types = [VALUE, ADDRESS]
+
+    def branching(self, ii):
+        _, target = self.operands
+        if target.is_literal:
+            ii.add_branch(BranchType.TrueBranch, target.value * size)
+        else:
+            ii.add_branch(BranchType.UnresolvedBranch)
+        ii.add_branch(BranchType.FalseBranch, self.next_operation)
+
+    def low_level_il(self, il):
+        a, b = self.operands_to_il(il)
+        true_branch = il.get_label_for_address(il.arch, il[b].constant)
+        false_branch = il.get_label_for_address(il.arch, self.next_operation)
+        il.append(il.if_expr(a, true_branch, false_branch))
+
+# jf: 8 a b
+#   if <a> is zero, jump to <b>
+class JumpIfZeroOperation(Operation):
+    opcode = 8
+    label = 'jf'
+    operand_types = [VALUE, ADDRESS]
+
+    def branching(self, ii):
+        _, target = self.operands
+        if target.is_literal:
+            ii.add_branch(BranchType.TrueBranch, target.value * size)
+        else:
+            ii.add_branch(BranchType.UnresolvedBranch)
+        ii.add_branch(BranchType.FalseBranch, self.next_operation)
+
+    def low_level_il(self, il):
+        a, b = self.operands_to_il(il)
+        true_branch = il.get_label_for_address(il.arch, self.next_operation)
+        false_branch = il.get_label_for_address(il.arch, il[b].constant)
+        il.append(il.if_expr(a, true_branch, false_branch))
+
+# add: 9 a b c
+#   assign into <a> the sum of <b> and <c> (modulo 32768)
+class AddOperation(Operation):
+    opcode = 9
+    label = 'add'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.add(size, b, c)))
+
+# mult: 10 a b c
+#   store into <a> the product of <b> and <c> (modulo 32768)
+class MultiplyOperation(Operation):
+    opcode = 10
+    label = 'mult'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.mult(size, b, c)))
+
+# mod: 11 a b c
+#   store into <a> the remainder of <b> divided by <c>
+class ModuloOperation(Operation):
+    opcode = 11
+    label = 'mod'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.mod_unsigned(size, b, c)))
+
+# and: 12 a b c
+#   stores into <a> the bitwise and of <b> and <c>
+class AndOperation(Operation):
+    opcode = 12
+    label = 'and'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.and_expr(size, b, c)))
+
+# or: 13 a b c
+#   stores into <a> the bitwise or of <b> and <c>
+class OrOperation(Operation):
+    opcode = 13
+    label = 'or'
+    operand_types = [REGISTER, VALUE, VALUE]
+
+    def low_level_il(self, il):
+        a, b, c = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.or_expr(size, b, c)))
+
+# not: 14 a b
+#   stores 15-bit bitwise inverse of <b> in <a>
+class NotOperation(Operation):
+    opcode = 14
+    label = 'not'
+    operand_types = [REGISTER, VALUE]
+
+    def low_level_il(self, il):
+        a, b = self.operands_to_il(il)
+        il.append(il.set_reg(size, a, il.not_expr(size, b)))
+
+# rmem: 15 a b
+#   read memory at address <b> and write it to <a>
+class ReadMemoryOperation(Operation):
+    opcode = 15
+    label = 'rmem'
+    operand_types = [REGISTER | ADDRESS, VALUE]
+
+# wmem: 16 a b
+#   write the value from <b> into memory at address <a>
+class WriteMemoryOperation(Operation):
+    opcode = 16
+    label = 'wmem'
+    operand_types = [ADDRESS, VALUE]
+
+# call: 17 a
+#   write the address of the next operation to the stack and jump to <a>
+class CallOperation(Operation):
+    opcode = 17
+    label = 'call'
+    operand_types = [ADDRESS]
+
+    def branching(self, ii):
+        target, = self.operands
+        if target.is_literal:
+            ii.add_branch(BranchType.CallDestination, target.value * size)
+        else:
+            ii.add_branch(BranchType.UnresolvedBranch)
+
+    def low_level_il(self, il):
+        a, = self.operands_to_il(il)
+        il.append(il.call(a))
+
+# ret: 18
+#   remove the top element from the stack and jump to it; empty stack = halt
+class StackReturnOperation(Operation):
+    opcode = 18
+    label = 'ret'
+
+    def branching(self, ii):
+        ii.add_branch(BranchType.FunctionReturn)
+
+    def low_level_il(self, il):
+        il.append(il.ret(il.pop(size)))
+
+# out: 19 a
+#   write the character represented by ascii code <a> to the terminal
+class OutOperation(Operation):
+    opcode = 19
+    label = 'out'
+    operand_types = [CHAR]
+
+# in: 20 a
+#   read a character from the terminal and write its ascii code to <a>;
+#   it can be assumed that once input starts, it will continue until a newline
+#   is encountered; this means that you can safely read whole lines from the
+#   keyboard and trust that they will be fully read
+class InOperation(Operation):
+    opcode = 20
+    label = 'in'
+    operand_types = [REGISTER]
+
+# noop: 21
+#   no operation
+class NoopOperation(Operation):
+    opcode = 21
+    label = 'noop'
+
+    def low_level_il(self, il):
+        il.append(il.nop())
 
 operations = [
-    # halt: 0
-    #   stop execution and terminate the program
-    Operation(
-        opcode=0,
-        name='halt',
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.append(il.no_ret())
-        ),
-    ),
-
-    # set: 1 a b
-    #   set register <a> to the value of <b>
-    Operation(
-        opcode=1,
-        name='set',
-        operands=[REGISTER, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # push: 2 a
-    #   push <a> onto the stack
-    Operation(
-        opcode=2,
-        name='push',
-        operands=[DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # pop: 3 a
-    #   remove the top element from the stack and write it into <a>; empty stack = error
-    Operation(
-        opcode=3,
-        name='pop',
-        operands=[REGISTER],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # eq: 4 a b c
-    #   set <a> to 1 if <b> is equal to <c>; set it to 0 otherwise
-    Operation(
-        opcode=4,
-        name='eq',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # gt: 5 a b c
-    #   set <a> to 1 if <b> is greater than <c>; set it to 0 otherwise
-    Operation(
-        opcode=5,
-        name='gt',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # jmp: 6 a
-    #   jump to <a>
-    Operation(
-        opcode=6,
-        name='jmp',
-        operands=[DYNAMIC | ADDRESS],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # jt: 7 a b
-    #   if <a> is nonzero, jump to <b>
-    Operation(
-        opcode=7,
-        name='jt',
-        operands=[DYNAMIC, DYNAMIC | ADDRESS],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # jf: 8 a b
-    #   if <a> is zero, jump to <b>
-    Operation(
-        opcode=8,
-        name='jf',
-        operands=[DYNAMIC, DYNAMIC | ADDRESS],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # add: 9 a b c
-    #   assign into <a> the sum of <b> and <c> (modulo 32768)
-    Operation(
-        opcode=9,
-        name='add',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # mult: 10 a b c
-    #   store into <a> the product of <b> and <c> (modulo 32768)
-    Operation(
-        opcode=10,
-        name='mult',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # mod: 11 a b c
-    #   store into <a> the remainder of <b> divided by <c>
-    Operation(
-        opcode=11,
-        name='mod',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # and: 12 a b c
-    #   stores into <a> the bitwise and of <b> and <c>
-    Operation(
-        opcode=12,
-        name='and',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # or: 13 a b c
-    #   stores into <a> the bitwise or of <b> and <c>
-    Operation(
-        opcode=13,
-        name='or',
-        operands=[REGISTER, DYNAMIC, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # not: 14 a b
-    #   stores 15-bit bitwise inverse of <b> in <a>
-    Operation(
-        opcode=14,
-        name='not',
-        operands=[REGISTER, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # rmem: 15 a b
-    #   read memory at address <b> and write it to <a>
-    Operation(
-        opcode=15,
-        name='rmem',
-        operands=[REGISTER | ADDRESS, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # wmem: 16 a b
-    #   write the value from <b> into memory at address <a>
-    Operation(
-        opcode=16,
-        name='wmem',
-        operands=[DYNAMIC | ADDRESS, DYNAMIC],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # call: 17 a
-    #   write the address of the next Operation to the stack and jump to <a>
-    Operation(
-        opcode=17,
-        name='call',
-        operands=[DYNAMIC | ADDRESS],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # ret: 18
-    #   remove the top element from the stack and jump to it; empty stack = halt
-    Operation(
-        opcode=18,
-        name='ret',
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # out: 19 a
-    #   write the character represented by ascii code <a> to the terminal
-    Operation(
-        opcode=19,
-        name='print',
-        operands=[DYNAMIC | CHAR],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # in: 20 a
-    #   read a character from the terminal and write its ascii code to <a>;
-    #   it can be assumed that once input starts, it will continue until a newline
-    #   is encountered; this means that you can safely read whole lines from the
-    #   keyboard and trust that they will be fully read
-    Operation(
-        opcode=20,
-        name='prompt',
-        operands=[REGISTER],
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.no_ret()
-        ),
-    ),
-
-    # noop: 21
-    #   no operation
-    Operation(
-        opcode=21,
-        name='noop',
-        to_llil=lambda arch, data, addr, il, *values: (
-            il.append(il.nop())
-        ),
-    ),
+    HaltOperation,
+    SetOperation,
+    StackPushOperation,
+    StackPopOperation,
+    EqualityOperation,
+    GreaterThanOperation,
+    JumpOperation,
+    JumpIfNonzeroOperation,
+    JumpIfZeroOperation,
+    AddOperation,
+    MultiplyOperation,
+    ModuloOperation,
+    AndOperation,
+    OrOperation,
+    NotOperation,
+    ReadMemoryOperation,
+    WriteMemoryOperation,
+    CallOperation,
+    StackReturnOperation,
+    OutOperation,
+    InOperation,
+    NoopOperation,
 ]
 
-lookup = {op.opcode : op for op in operations}
+lookup = lookup = {op.opcode : op for op in operations}
