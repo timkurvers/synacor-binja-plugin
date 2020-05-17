@@ -1,7 +1,7 @@
 from binaryninja.enums import InstructionTextTokenType as TokenType
 from binaryninja.function import InstructionTextToken as Token
 
-from .utils import ADDRESS_SIZE as size, classproperty, display
+from .utils import ADDRESS_SIZE as size, classproperty
 
 class Operation(object):
     opcode = None
