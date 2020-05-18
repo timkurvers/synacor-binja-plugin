@@ -1,11 +1,12 @@
+import re
 import struct
 
 from binaryninja.architecture import Architecture
 from binaryninja.function import InstructionInfo, RegisterInfo
 
 from .operand import Operand
-from .operations import lookup, operations
-from .utils import ADDRESS_SIZE as size
+from .operations import NoopOperation, lookup, operations
+from .utils import ADDRESS_SIZE as size, safeint
 
 class Synacor(Architecture):
     name = 'Synacor'
@@ -30,6 +31,28 @@ class Synacor(Architecture):
     }
     stack_pointer = 'SP'
 
+    def assemble(self, code, _addr):
+        parts = re.split('[ ,]+', code.strip())
+        instr = parts.pop(0)
+        op_cls = lookup.get(instr) or lookup.get(safeint(instr, 0))
+        if op_cls is None:
+            raise ValueError("No operation found for '%s'" % instr)
+
+        types = op_cls.operand_types
+        if len(parts) != len(types):
+            raise ValueError(
+                "'%s' requires exactly %d operands" % (op_cls.label, len(types))
+            )
+
+        values = [op_cls.opcode]
+        for (i, flags) in enumerate(types):
+            values.append(Operand.assemble(i, flags, parts[i]))
+        return struct.pack('<%iH' % len(values), *values)
+
+    def convert_to_nop(self, data, _addr):
+        nop = struct.pack('<1H', NoopOperation.opcode)
+        return nop * (len(data) / size)
+
     def decode(self, data, count, offset=0):
         start = offset * size
         end = start + count * size
@@ -48,7 +71,7 @@ class Synacor(Architecture):
         if values is None:
             return None
 
-        operands = [Operand(flags, values[i]) for (i, flags) in enumerate(types)]
+        operands = [Operand(i, flags, values[i]) for (i, flags) in enumerate(types)]
         return op_cls(self, addr, operands)
 
     def get_instruction_info(self, data, addr):

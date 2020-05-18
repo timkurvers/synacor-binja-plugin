@@ -4,13 +4,31 @@ from binaryninja.function import InstructionTextToken as Token
 from .utils import (
     ADDRESS_SIZE as size, LITERAL_MAX, REGISTER_MIN, REGISTER_MAX,
     ADDRESS, CHAR, REGISTER,
-    display,
+    display, safeint
 )
 
 class Operand(object):
-    def __init__(self, flags, value):
+    def __init__(self, index, flags, value):
+        self.index = index
         self.flags = flags
         self.value = value
+
+    @staticmethod
+    def assemble(index, flags, value):
+        if flags & REGISTER and not value.startswith('R'):
+            raise ValueError("Operand %d expects a register" % index)
+        if value.startswith('R'):
+            reg = safeint(value[1], 10)
+            return REGISTER_MIN + reg
+        nr = safeint(value, 0)
+        if flags & CHAR and nr is None:
+            char = value.strip('"\'')
+            if len(char) != 1:
+                raise ValueError("Operand %d expects a single char" % index)
+            return ord(char)
+        if flags & ADDRESS:
+            nr /= 2
+        return nr
 
     @property
     def register_name(self):
