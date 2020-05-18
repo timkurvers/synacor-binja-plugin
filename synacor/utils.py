@@ -16,6 +16,12 @@ def display(value, kind = VALUE, pad_bytes = 2):
         return repr(chr(value))
     return '0x{0:0{1}X}'.format(value, pad_bytes * 2)
 
+def safeint(value, base):
+    try:
+        return int(value, base)
+    except ValueError:
+        return None
+
 class classproperty(object):
     def __init__(self, getter):
         self.getter = getter
