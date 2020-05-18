@@ -108,12 +108,13 @@ class JumpIfNonzeroOperation(Operation):
 
     def low_level_il(self, il):
         a, b = self.operands_to_il(il)
+        condition = il.compare_not_equal(size, a, il.const(size, 0))
         true_branch = il.get_label_for_address(il.arch, il[b].constant)
         false_branch = il.get_label_for_address(il.arch, self.next_operation)
 
         # TODO: Are these safeguards correct?
         if true_branch and false_branch:
-            il.append(il.if_expr(a, true_branch, false_branch))
+            il.append(il.if_expr(condition, true_branch, false_branch))
 
 # jf: 8 a b
 #   if <a> is zero, jump to <b>
@@ -132,12 +133,13 @@ class JumpIfZeroOperation(Operation):
 
     def low_level_il(self, il):
         a, b = self.operands_to_il(il)
-        true_branch = il.get_label_for_address(il.arch, self.next_operation)
-        false_branch = il.get_label_for_address(il.arch, il[b].constant)
+        condition = il.compare_equal(size, a, il.const(size, 0))
+        true_branch = il.get_label_for_address(il.arch, il[b].constant)
+        false_branch = il.get_label_for_address(il.arch, self.next_operation)
 
         # TODO: Are these safeguards correct?
         if true_branch and false_branch:
-            il.append(il.if_expr(a, true_branch, false_branch))
+            il.append(il.if_expr(condition, true_branch, false_branch))
 
 # add: 9 a b c
 #   assign into <a> the sum of <b> and <c> (modulo 32768)
