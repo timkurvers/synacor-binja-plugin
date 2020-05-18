@@ -308,4 +308,7 @@ operations = [
     NoopOperation,
 ]
 
-lookup = lookup = {op.opcode : op for op in operations}
+lookup = {}
+for op in operations:
+    lookup[op.opcode] = op
+    lookup[op.label] = op
