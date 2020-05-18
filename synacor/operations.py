@@ -203,7 +203,8 @@ class NotOperation(Operation):
 
     def low_level_il(self, il):
         a, b = self.operands_to_il(il)
-        il.append(il.set_reg(size, a, il.not_expr(size, b)))
+        inverse = il.and_expr(size, il.not_expr(size, b), il.const(size, 0x7FFF))
+        il.append(il.set_reg(size, a, inverse))
 
 # rmem: 15 a b
 #   read memory at address <b> and write it to <a>
