@@ -12,7 +12,7 @@ class SynacorView(BinaryView):
     def is_valid_for_data(cls, data):
         # No reliable way to determine whether given data is a legit Synacor
         # program, so rely on extension .synbin instead
-        return data.file.filename.endswith('.synbin')
+        return data.file.original_filename.endswith('.synbin')
 
     def __init__(self, data):
         BinaryView.__init__(self, parent_view=data, file_metadata=data.file)
