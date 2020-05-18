@@ -33,16 +33,21 @@ class Synacor(Architecture):
     def decode(self, data, count, offset=0):
         start = offset * size
         end = start + count * size
+        if len(data) < end - start:
+            return [None] * count
         return struct.unpack('<%iH' % count, data[start:end])
 
     def decode_operation(self, data, addr):
-        opcode = self.decode(data, count=1)[0]
+        opcode, = self.decode(data, count=1)
         op_cls = lookup.get(opcode)
         if op_cls is None:
             return None
 
         types = op_cls.operand_types
         values = self.decode(data, count=len(types), offset=1)
+        if values is None:
+            return None
+
         operands = [Operand(flags, values[i]) for (i, flags) in enumerate(types)]
         return op_cls(self, addr, operands)
 
