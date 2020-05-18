@@ -2,7 +2,7 @@ from binaryninja.enums import BranchType
 
 from .operation import Operation
 from .utils import (
-    ADDRESS_SIZE as size,
+    ADDRESS_SIZE as size, LITERAL_MODULO,
     ADDRESS, CHAR, REGISTER, VALUE
 )
 
@@ -148,7 +148,9 @@ class AddOperation(Operation):
 
     def low_level_il(self, il):
         a, b, c = self.operands_to_il(il)
-        il.append(il.set_reg(size, a, il.add(size, b, c)))
+        modulus = il.const(size, LITERAL_MODULO)
+        wrapped = il.mod_unsigned(size, il.add(size, b, c), modulus)
+        il.append(il.set_reg(size, a, wrapped))
 
 # mult: 10 a b c
 #   store into <a> the product of <b> and <c> (modulo 32768)
@@ -159,7 +161,9 @@ class MultiplyOperation(Operation):
 
     def low_level_il(self, il):
         a, b, c = self.operands_to_il(il)
-        il.append(il.set_reg(size, a, il.mult(size, b, c)))
+        modulus = il.const(size, LITERAL_MODULO)
+        wrapped = il.mod_unsigned(size, il.mult(size, b, c), modulus)
+        il.append(il.set_reg(size, a, wrapped))
 
 # mod: 11 a b c
 #   store into <a> the remainder of <b> divided by <c>
