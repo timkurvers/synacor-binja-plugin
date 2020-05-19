@@ -8,25 +8,25 @@ from .utils import (
 )
 
 class Operand(object):
-    def __init__(self, index, flags, value):
+    def __init__(self, index, optype, value):
         self.index = index
-        self.flags = flags
+        self.type = optype
         self.value = value
 
     @staticmethod
-    def assemble(index, flags, value):
-        if flags & REGISTER and not value.startswith('R'):
+    def assemble(index, optype, value):
+        if optype == REGISTER and not value.startswith('R'):
             raise ValueError("Operand %d expects a register" % index)
         if value.startswith('R'):
             reg = safeint(value[1], 10)
             return REGISTER_MIN + reg
         nr = safeint(value, 0)
-        if flags & CHAR and nr is None:
+        if optype == CHAR and nr is None:
             char = value.strip('"\'')
             if len(char) != 1:
                 raise ValueError("Operand %d expects a single char" % index)
             return ord(char)
-        if flags & ADDRESS:
+        if optype == ADDRESS:
             nr /= 2
         return nr
 
@@ -48,9 +48,9 @@ class Operand(object):
         if self.is_register:
             token = Token(TokenType.RegisterToken, self.register_name)
         elif self.is_literal:
-            if self.flags & CHAR:
+            if self.type == CHAR:
                 token = Token(TokenType.CharacterConstantToken, display(self.value, CHAR))
-            elif self.flags & ADDRESS:
+            elif self.type == ADDRESS:
                 address = self.value * size
                 token = Token(TokenType.PossibleAddressToken, display(address))
             else:
@@ -59,11 +59,11 @@ class Operand(object):
             tokens.append(token)
 
     def to_il(self, il):
-        if self.flags & REGISTER:
+        if self.type == REGISTER:
             if self.is_register:
                 return self.register_name
             return None
-        elif self.flags & ADDRESS:
+        elif self.type == ADDRESS:
             if self.is_register:
                 reg = il.reg(size, self.register_name)
                 return il.mult(size, reg, il.const(size, size))

@@ -6,14 +6,14 @@ LITERAL_MODULO = 32768
 REGISTER_MIN   = 32768
 REGISTER_MAX   = 32775
 
-# These flags are for convenience and not Synacor architecture specific
-VALUE    = 0b000
-ADDRESS  = 0b001
-CHAR     = 0b010
-REGISTER = 0b100
+# These operand types are for convenience and not Synacor architecture specific
+VALUE    = 'value'
+ADDRESS  = 'address'
+CHAR     = 'char'
+REGISTER = 'register'
 
-def display(value, kind = VALUE, pad_bytes = 2):
-    if kind == CHAR:
+def display(value, optype = VALUE, pad_bytes = 2):
+    if optype == CHAR:
         return repr(chr(value))
     return '0x{0:0{1}X}'.format(value, pad_bytes * 2)
 

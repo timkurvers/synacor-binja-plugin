@@ -45,8 +45,8 @@ class Synacor(Architecture):
             )
 
         values = [op_cls.opcode]
-        for (i, flags) in enumerate(types):
-            values.append(Operand.assemble(i, flags, parts[i]))
+        for (i, optype) in enumerate(types):
+            values.append(Operand.assemble(i, optype, parts[i]))
         return struct.pack('<%iH' % len(values), *values)
 
     def convert_to_nop(self, data, _addr):
@@ -71,7 +71,7 @@ class Synacor(Architecture):
         if values is None:
             return None
 
-        operands = [Operand(i, flags, values[i]) for (i, flags) in enumerate(types)]
+        operands = [Operand(i, optype, values[i]) for (i, optype) in enumerate(types)]
         return op_cls(self, addr, operands)
 
     def get_instruction_info(self, data, addr):
