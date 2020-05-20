@@ -1,8 +1,8 @@
 # pylint: disable = attribute-defined-outside-init
 
-from binaryninja.architecture import Architecture
-from binaryninja.binaryview import BinaryView
-from binaryninja.enums import SectionSemantics, SegmentFlag as Flag
+from binaryninja import (
+    Architecture, BinaryView, SectionSemantics, SegmentFlag as Flag
+)
 
 class SynacorView(BinaryView):
     name = 'Synacor'

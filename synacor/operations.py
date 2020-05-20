@@ -1,4 +1,6 @@
-from binaryninja.enums import BranchType
+from binaryninja import (
+    BranchType, LowLevelILLabel
+)
 
 from .operation import Operation
 from .utils import (

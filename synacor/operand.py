@@ -1,5 +1,7 @@
-from binaryninja.enums import InstructionTextTokenType as TokenType
-from binaryninja.function import InstructionTextToken as Token
+from binaryninja import (
+    InstructionTextToken as Token,
+    InstructionTextTokenType as TokenType
+)
 
 from .utils import (
     ADDRESS_SIZE as size, LITERAL_MAX, REGISTER_MIN, REGISTER_MAX,

@@ -1,8 +1,9 @@
 import re
 import struct
 
-from binaryninja.architecture import Architecture
-from binaryninja.function import InstructionInfo, RegisterInfo
+from binaryninja import (
+    Architecture, InstructionInfo, RegisterInfo
+)
 
 from .operand import Operand
 from .operations import NoopOperation, lookup, operations
