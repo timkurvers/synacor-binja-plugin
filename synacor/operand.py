@@ -70,7 +70,7 @@ class Operand(object):
                 reg = il.reg(size, self.register_name)
                 return il.mult(size, reg, il.const(size, size))
             elif self.is_literal:
-                return il.const_pointer(size, self.value * size)
+                return il.const(size, self.value * size)
             return None
         if self.is_register:
             return il.reg(size, self.register_name)

@@ -87,7 +87,7 @@ class JumpOperation(Operation):
         if target.is_literal:
             ii.add_branch(BranchType.UnconditionalBranch, target.value * size)
         else:
-            ii.add_branch(BranchType.UnresolvedBranch)
+            ii.add_branch(BranchType.IndirectBranch)
 
     def low_level_il(self, il):
         a, = self.operands_to_il(il)
@@ -105,18 +105,25 @@ class JumpIfNonzeroOperation(Operation):
         if target.is_literal:
             ii.add_branch(BranchType.TrueBranch, target.value * size)
         else:
-            ii.add_branch(BranchType.UnresolvedBranch)
+            ii.add_branch(BranchType.IndirectBranch)
         ii.add_branch(BranchType.FalseBranch, self.next_operation)
 
     def low_level_il(self, il):
         a, b = self.operands_to_il(il)
         condition = il.compare_not_equal(size, a, il.const(size, 0))
-        true_branch = il.get_label_for_address(il.arch, il[b].constant)
+
+        addr = getattr(il[b], 'constant', None)
+        true_branch = addr and il.get_label_for_address(il.arch, addr)
+        indirect = not true_branch
+        if indirect:
+            true_branch = LowLevelILLabel()
         false_branch = il.get_label_for_address(il.arch, self.next_operation)
 
-        # TODO: Are these safeguards correct?
-        if true_branch and false_branch:
-            il.append(il.if_expr(condition, true_branch, false_branch))
+        il.append(il.if_expr(condition, true_branch, false_branch))
+
+        if indirect:
+            il.mark_label(true_branch)
+            il.append(il.jump(b))
 
 # jf: 8 a b
 #   if <a> is zero, jump to <b>
@@ -130,18 +137,25 @@ class JumpIfZeroOperation(Operation):
         if target.is_literal:
             ii.add_branch(BranchType.TrueBranch, target.value * size)
         else:
-            ii.add_branch(BranchType.UnresolvedBranch)
+            ii.add_branch(BranchType.IndirectBranch)
         ii.add_branch(BranchType.FalseBranch, self.next_operation)
 
     def low_level_il(self, il):
         a, b = self.operands_to_il(il)
         condition = il.compare_equal(size, a, il.const(size, 0))
-        true_branch = il.get_label_for_address(il.arch, il[b].constant)
+
+        addr = getattr(il[b], 'constant', None)
+        true_branch = addr and il.get_label_for_address(il.arch, addr)
+        indirect = not true_branch
+        if indirect:
+            true_branch = LowLevelILLabel()
         false_branch = il.get_label_for_address(il.arch, self.next_operation)
 
-        # TODO: Are these safeguards correct?
-        if true_branch and false_branch:
-            il.append(il.if_expr(condition, true_branch, false_branch))
+        il.append(il.if_expr(condition, true_branch, false_branch))
+
+        if indirect:
+            il.mark_label(true_branch)
+            il.append(il.jump(b))
 
 # add: 9 a b c
 #   assign into <a> the sum of <b> and <c> (modulo 32768)
