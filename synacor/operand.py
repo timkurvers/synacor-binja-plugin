@@ -1,3 +1,5 @@
+# pylint: disable = too-many-return-statements
+
 from binaryninja import (
     InstructionTextToken as Token,
     InstructionTextTokenType as TokenType
