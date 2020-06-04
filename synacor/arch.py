@@ -33,7 +33,7 @@ class Synacor(Architecture):
     stack_pointer = 'SP'
 
     def assemble(self, code, _addr):
-        parts = re.split('[ ,]+', code.strip())
+        parts = re.split('[ ,]+', code.decode().strip())
         instr = parts.pop(0)
         op_cls = lookup.get(instr) or lookup.get(safeint(instr, 0))
         if op_cls is None:
@@ -52,7 +52,7 @@ class Synacor(Architecture):
 
     def convert_to_nop(self, data, _addr):
         nop = struct.pack('<1H', NoopOperation.opcode)
-        return nop * (len(data) / size)
+        return nop * (len(data) // size)
 
     def decode(self, data, count, offset=0):
         start = offset * size

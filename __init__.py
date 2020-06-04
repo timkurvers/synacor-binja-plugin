@@ -1,4 +1,4 @@
-from synacor import Synacor, SynacorView
+from .synacor import Synacor, SynacorView
 
 Synacor.register()
 SynacorView.register()
