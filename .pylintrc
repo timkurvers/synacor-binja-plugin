@@ -2,7 +2,7 @@
 ignored-modules = binaryninja
 
 [MESSAGES]
-disable = missing-docstring, invalid-name, no-self-use, relative-import, too-few-public-methods, too-many-arguments
+disable = missing-docstring, invalid-name, no-self-use, relative-import, too-few-public-methods, too-many-arguments, useless-object-inheritance
 
 [MISCELLANEOUS]
 notes=FIXME
