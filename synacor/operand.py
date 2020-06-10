@@ -67,15 +67,15 @@ class Operand(object):
             if self.is_register:
                 return self.register_name
             return None
-        elif self.type == ADDRESS:
+        if self.type == ADDRESS:
             if self.is_register:
                 reg = il.reg(size, self.register_name)
                 return il.mult(size, reg, il.const(size, size))
-            elif self.is_literal:
+            if self.is_literal:
                 return il.const(size, self.value * size)
             return None
         if self.is_register:
             return il.reg(size, self.register_name)
-        elif self.is_literal:
+        if self.is_literal:
             return il.const(size, self.value)
         return None
