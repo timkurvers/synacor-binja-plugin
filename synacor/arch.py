@@ -28,9 +28,9 @@ class Synacor(Architecture):
         'R7': RegisterInfo('R7', size),
 
         # Not sure if used, but required by Binary Ninja
-        'SP': RegisterInfo('SP', size)
+        'sp': RegisterInfo('sp', size)
     }
-    stack_pointer = 'SP'
+    stack_pointer = 'sp'
 
     def assemble(self, code, _addr):
         parts = re.split('[ ,]+', code.decode().strip())
