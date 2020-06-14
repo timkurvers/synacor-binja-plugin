@@ -56,7 +56,10 @@ class Operand(object):
                 token = Token(TokenType.CharacterConstantToken, display(self.value, CHAR))
             elif self.type == ADDRESS:
                 address = self.value * size
-                token = Token(TokenType.PossibleAddressToken, display(address))
+                # Using AddressDisplayToken rather than PossibleAddressToken to
+                # prevent disappearance of this operand in disassembly view
+                # Note: Operand will still disappear when assembling
+                token = Token(TokenType.AddressDisplayToken, display(address))
             else:
                 token = Token(TokenType.TextToken, display(self.value, pad_bytes=0))
         if token:
