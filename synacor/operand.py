@@ -31,7 +31,7 @@ class Operand(object):
                 raise ValueError("Operand %d expects a single char" % index)
             return ord(char)
         if optype == ADDRESS:
-            nr /= 2
+            nr //= 2
         return nr
 
     @property
