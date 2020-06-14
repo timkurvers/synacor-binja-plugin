@@ -15,7 +15,7 @@ REGISTER = 'register'
 def display(value, optype = VALUE, pad_bytes = 2):
     if optype == CHAR:
         return repr(chr(value))
-    return '0x{0:0{1}X}'.format(value, pad_bytes * 2)
+    return '0x{0:0{1}x}'.format(value, pad_bytes * 2)
 
 def safeint(value, base):
     try:
